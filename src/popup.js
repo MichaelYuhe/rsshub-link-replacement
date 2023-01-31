@@ -1,112 +1,52 @@
-'use strict';
-
 import './popup.css';
 
 (function () {
-  // We will make use of Storage API to get and store `count` value
-  // More information on Storage API can we found at
-  // https://developer.chrome.com/extensions/storage
+  const saveButton = document.getElementById('save');
 
-  // To get storage access, we have to mention it in `permissions` property of manifest.json file
-  // More information on Permissions can we found at
-  // https://developer.chrome.com/extensions/declare_permissions
-  const counterStorage = {
+  saveButton.addEventListener('click', () => {
+    setPersonalLink(document.getElementById('personal-link-input').value);
+  })
+
+  const personalLinkStorage = {
     get: (cb) => {
-      chrome.storage.sync.get(['count'], (result) => {
-        cb(result.count);
+      chrome.storage.sync.get(['link'], (result) => {
+        cb(result.link);
       });
     },
     set: (value, cb) => {
       chrome.storage.sync.set(
         {
-          count: value,
+          link: value,
         },
         () => {
           cb();
         }
       );
     },
-  };
-
-  function setupCounter(initialValue = 0) {
-    document.getElementById('counter').innerHTML = initialValue;
-
-    document.getElementById('incrementBtn').addEventListener('click', () => {
-      updateCounter({
-        type: 'INCREMENT',
-      });
-    });
-
-    document.getElementById('decrementBtn').addEventListener('click', () => {
-      updateCounter({
-        type: 'DECREMENT',
-      });
-    });
   }
 
-  function updateCounter({ type }) {
-    counterStorage.get((count) => {
-      let newCount;
-
-      if (type === 'INCREMENT') {
-        newCount = count + 1;
-      } else if (type === 'DECREMENT') {
-        newCount = count - 1;
-      } else {
-        newCount = count;
-      }
-
-      counterStorage.set(newCount, () => {
-        document.getElementById('counter').innerHTML = newCount;
-
-        // Communicate with content script of
-        // active tab by sending a message
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          const tab = tabs[0];
-
-          chrome.tabs.sendMessage(
-            tab.id,
-            {
-              type: 'COUNT',
-              payload: {
-                count: newCount,
-              },
-            },
-            (response) => {
-              console.log('Current count value passed to contentScript file');
-            }
-          );
-        });
-      });
-    });
-  }
-
-  function restoreCounter() {
-    // Restore count value
-    counterStorage.get((count) => {
-      if (typeof count === 'undefined') {
-        // Set counter value as 0
-        counterStorage.set(0, () => {
-          setupCounter(0);
+  const restorePersonalLink = () => {
+    personalLinkStorage.get((link) => {
+      if (!link) {
+        personalLinkStorage.set(0, () => {
+          setPersonalLink('');
         });
       } else {
-        setupCounter(count);
+        setPersonalLink(link);
       }
     });
   }
 
-  document.addEventListener('DOMContentLoaded', restoreCounter);
+  const setPersonalLink = (value = '') => {
+    document.getElementById('personal-link-input').value = value;
+    updatePersonalLink(value);
+  }
 
-  // Communicate with background file by sending a message
-  chrome.runtime.sendMessage(
-    {
-      type: 'GREETINGS',
-      payload: {
-        message: 'Hello, my name is Pop. I am from Popup.',
-      },
-    },
-    (response) => {
-      console.log(response.message);
-    }
-  );
+  const updatePersonalLink = (newLink) => {
+    personalLinkStorage.set(newLink, () => {
+      document.getElementById('personal-link-input').value = newLink;
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', restorePersonalLink);
 })();
